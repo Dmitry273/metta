@@ -3,12 +3,8 @@ import signal  # Aggressively exit on ctrl+c
 
 import hydra
 from metta.sim.vecenv import make_vecenv
-
-from metta.agent.policy_store import PolicyStore
-from metta.rl.pufferlib.play import play
 from metta.util.config import config_from_path
 from metta.util.runtime_configuration import setup_mettagrid_environment
-from metta.util.wandb.wandb_context import WandbContext
 
 signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 
@@ -17,11 +13,7 @@ signal.signal(signal.SIGINT, lambda sig, frame: os._exit(0))
 def main(cfg):
     setup_mettagrid_environment(cfg)
     cfg.eval.env = config_from_path(cfg.eval.env, cfg.eval.env_overrides)
-    with WandbContext(cfg) as wandb_run:
-        policy_store = PolicyStore(cfg, wandb_run)
-
-        play(cfg, policy_store)
-
+    make_vecenv(cfg.eval.env, cfg.vectorization, num_envs=1, render_mode="human")
 
 if __name__ == "__main__":
     main()

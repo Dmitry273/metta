@@ -1,5 +1,5 @@
 defaults:
-  - /env/mettagrid-base/mettagrid@
+  - mettagrid
   - game/map_builder: mapgen_auto
   - _self_
 

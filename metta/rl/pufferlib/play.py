@@ -10,7 +10,6 @@ from mettagrid.renderer.raylib.raylib_renderer import MettaGridRaylibRenderer
 def play(cfg: OmegaConf, policy_store: PolicyStore):
     device = cfg.device
     vecenv = make_vecenv(cfg.eval.env, cfg.vectorization, num_envs=1, render_mode="human")
-
     obs, _ = vecenv.reset()
     env = vecenv.envs[0]
     policy_record = policy_store.policy(cfg.policy_uri)

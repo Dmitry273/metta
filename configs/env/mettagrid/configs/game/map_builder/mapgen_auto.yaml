@@ -2,8 +2,8 @@
 
 _target_: mettagrid.map.mapgen.MapGen
 
-width: ${uniform:50,100,60}
-height: ${uniform:50,100,60}
+width: ${sampling:50,100,60}
+height: ${sampling:50,100,60}
 root:
   _target_: mettagrid.map.scenes.auto.Auto
   config:
