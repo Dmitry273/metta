@@ -14,8 +14,7 @@ import numpy.typing as npt
 import pufferlib
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-# Import with explicit comment about the pylint disable
-from mettagrid.mettagrid_c import MettaGrid  # C extension module
+from mettagrid.mettagrid_c import MettaGrid  # type: ignore import error
 
 
 def get_or_0(accessor_fn):
@@ -57,6 +56,8 @@ class MettaGridEnv(pufferlib.PufferEnv, gym.Env):
         self._render_mode = render_mode
         self._original_cfg = cfg
         self.active_cfg = self._resolve_original_cfg()
+
+        self.labels = OmegaConf.select(self._original_cfg, "labels") if "labels" in self._original_cfg else None
 
         self.initialize_episode()
         super().__init__(buf)
@@ -125,6 +126,7 @@ class MettaGridEnv(pufferlib.PufferEnv, gym.Env):
 
         # Build map and verify agent count
         env_map = self._map_builder.build()
+
         map_agents = np.count_nonzero(np.char.startswith(env_map, "agent"))
         game_agents = get_or_0(lambda: self.active_cfg.game.num_agents)
         if game_agents != map_agents:
@@ -198,6 +200,22 @@ class MettaGridEnv(pufferlib.PufferEnv, gym.Env):
                 "agent": agent_stats,
             }
         )
+
+        if self._map_builder.labels is not None:
+            for label in self._map_builder.labels:
+                self.last_episode_info.update(
+                    {
+                        f"rewards/map:{label}": rewards_mean,
+                    }
+                )
+
+        if self.labels is not None:
+            for label in self.labels:
+                self.last_episode_info.update(
+                    {
+                        f"rewards/env:{label}": rewards_mean,
+                    }
+                )
 
         # we back the property self.done with this value because
         # it is accessed thousands of times per step!
@@ -442,6 +460,8 @@ class MettaGridEnvSet(MettaGridEnv):
                 raise ValueError("Sum of weights cannot be zero")
             self._probabilities = [p / total for p in weights]
 
+        self.check_action_space()
+
         super().__init__(cfg, render_mode, buf, **kwargs)
 
         # start with a random config from the set
@@ -467,6 +487,12 @@ class MettaGridEnvSet(MettaGridEnv):
 
         OmegaConf.resolve(cfg)
         return cfg
+
+    def check_action_space(self):
+        env_cfgs = [config_from_path(env) for env in self._original_cfg_paths]
+        action_spaces = [env_cfg.game.actions for env_cfg in env_cfgs]
+        if not all(action_space == action_spaces[0] for action_space in action_spaces):
+            raise ValueError("All environments must have the same action space.")
 
 
 def config_from_path(config_path: str) -> DictConfig:
