@@ -189,8 +189,6 @@ class MettaGridEnv(pufferlib.PufferEnv, gym.Env):
                 "game": stats["game"],
                 "game/difficulty": get_or_0(lambda: self.active_cfg.game.difficulty),  # [progress tracking]
                 "game/max_steps": get_or_0(lambda: self.active_cfg.game.max_steps),
-                "game/min_size": get_or_0(lambda: self.active_cfg.game.min_size),
-                "game/max_size": get_or_0(lambda: self.active_cfg.game.max_size),
                 "game/width": get_or_0(lambda: self.active_cfg.game.map_builder["width"]),
                 "game/height": get_or_0(lambda: self.active_cfg.game.map_builder["height"]),
                 "progress/episode_count": get_or_0(lambda: self.active_cfg.progress.episode_count),
@@ -428,6 +426,7 @@ class MettaGridEnvSet(MettaGridEnv):
         # Validate that all environments have the same agent count
         first_env_cfg = config_from_path(self._original_cfg_paths[0])
         num_agents = first_env_cfg.game.num_agents
+        action_space = first_env_cfg.game.actions
 
         # Improve error message with specific environment information
         for env_path in self._original_cfg_paths:
@@ -436,6 +435,12 @@ class MettaGridEnvSet(MettaGridEnv):
                 raise ValueError(
                     "For MettaGridEnvSet, the number of agents must be the same in all environments. "
                     f"Environment '{env_path}' has {env_cfg.game.num_agents} agents, but expected {num_agents} "
+                    f"(from first environment '{self._original_cfg_paths[0]}')"
+                )
+            if env_cfg.game.actions != action_space:
+                raise ValueError(
+                    "For MettaGridEnvSet, the action space must be the same in all environments. "
+                    f"Environment '{env_path}' has {env_cfg.game.actions}, but expected {action_space} "
                     f"(from first environment '{self._original_cfg_paths[0]}')"
                 )
 
@@ -459,8 +464,6 @@ class MettaGridEnvSet(MettaGridEnv):
             if total == 0:
                 raise ValueError("Sum of weights cannot be zero")
             self._probabilities = [p / total for p in weights]
-
-        self.check_action_space()
 
         super().__init__(cfg, render_mode, buf, **kwargs)
 
@@ -487,12 +490,6 @@ class MettaGridEnvSet(MettaGridEnv):
 
         OmegaConf.resolve(cfg)
         return cfg
-
-    def check_action_space(self):
-        env_cfgs = [config_from_path(env) for env in self._original_cfg_paths]
-        action_spaces = [env_cfg.game.actions for env_cfg in env_cfgs]
-        if not all(action_space == action_spaces[0] for action_space in action_spaces):
-            raise ValueError("All environments must have the same action space.")
 
 
 def config_from_path(config_path: str) -> DictConfig:
