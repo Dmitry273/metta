@@ -37,6 +37,10 @@ class ReplayHelper:
         """Generate a replay and save it to a file."""
         simulator = Simulator(self.config, self.policy_record)
 
+        # Debug info about action space
+        print(f"Action space: {simulator.env.action_space}")
+        print(f"Action names: {simulator.env.action_names()}")
+
         grid_objects = []
 
         replay = {
@@ -55,7 +59,32 @@ class ReplayHelper:
         while not simulator.done():
             actions = simulator.actions()
 
-            actions_array = actions.cpu().numpy()
+            # Add debug info about actions
+            print(f"Step {step} - Action shape: {actions.shape}")
+            print(f"Step {step} - Action values: {actions}")
+            print(f"Step {step} - Action type: {actions.dtype}")
+
+            # Check if actions are within bounds before proceeding
+            if hasattr(simulator.env, "action_space"):
+                try:
+                    # Attempt to validate actions against action space
+                    actions_array = actions.cpu().numpy()
+                    print(f"Step {step} - Action array shape: {actions_array.shape}")
+                    print(f"Step {step} - Action array values: {actions_array}")
+
+                    # If discrete action space, check if all values are within bounds
+                    if hasattr(simulator.env.action_space, "n"):
+                        action_max = simulator.env.action_space.n - 1
+                        action_min = 0
+                        max_val = actions_array.max()
+                        min_val = actions_array.min()
+                        print(f"Step {step} - Action space bounds: min={action_min}, max={action_max}")
+                        print(f"Step {step} - Actual action bounds: min={min_val}, max={max_val}")
+
+                        if min_val < action_min or max_val > action_max:
+                            print(f"WARNING: Actions out of bounds at step {step}!")
+                except Exception as e:
+                    print(f"Error validating actions at step {step}: {e}")
 
             for i, grid_object in enumerate(simulator.grid_objects()):
                 if len(grid_objects) <= i:
@@ -66,6 +95,9 @@ class ReplayHelper:
 
                 if "agent_id" in grid_object:
                     agent_id = grid_object["agent_id"]
+                    # Print agent action info
+                    print(f"Step {step} - Agent {agent_id} action: {actions_array[agent_id].tolist()}")
+
                     self._add_sequence_key(grid_objects[i], "action", step, actions_array[agent_id].tolist())
                     self._add_sequence_key(
                         grid_objects[i], "action_success", step, bool(simulator.env.action_success[agent_id])
@@ -75,7 +107,13 @@ class ReplayHelper:
                         grid_objects[i], "total_reward", step, simulator.total_rewards[agent_id].item()
                     )
 
-            simulator.step(actions)
+            try:
+                simulator.step(actions)
+            except Exception as e:
+                print(f"Error in simulator.step at step {step}: {e}")
+                # Print additional debugging information
+                print(f"Full action tensor: {actions}")
+                raise
 
             step += 1
 
