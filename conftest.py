@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+# conftest.py at project root
+
 # Add ./deps and ./deps/pufferlib to sys.path if not already present
 base_dir = Path(__file__).resolve().parent
 deps_path = base_dir / "deps"
